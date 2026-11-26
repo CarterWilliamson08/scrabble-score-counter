@@ -13,7 +13,7 @@ This repo has two clients with the same product idea:
 
 ## Web app (no Mac required)
 
-The mobile web app in [`web/`](web/) stores games and saved player names in the browser (`localStorage`) on your phone. Turn totals only — same flow as the native draft (home, new game 1–4 players, recurring names, undo, end/save).
+The mobile web app in [`web/`](web/) stores games and saved player names in the browser (`localStorage`) on your phone. Turn totals only — same flow as the native draft (home, new game 1–4 players, recurring names, undo, end/save), plus a **held-tiles penalty** step when ending a game.
 
 ### Open locally (computer)
 
@@ -34,6 +34,13 @@ Then open [http://127.0.0.1:4173](http://127.0.0.1:4173). Any static file server
 6. Open the new icon on your Home Screen like an app. Scores stay on that iPhone only.
 
 Tip: After Add to Home Screen, it launches without Safari chrome (PWA-lite: web app manifest + light offline cache).
+
+### Ending a game (held-tile penalties)
+
+1. In an active game, tap **End & save**.
+2. For each player, enter a non-negative penalty for letters still on their rack (classic Scrabble leftover-tile deduction). Leave blank or `0` to skip anyone who is out of tiles.
+3. Updated finals preview live as you type; tap **Save finals** to apply the subtractions and move the game to **Past games**. **Back to game** cancels without changing scores.
+4. Past-game detail shows any applied held-tile deduction (older saved games without this field still open normally).
 
 ### Web file map
 

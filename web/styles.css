@@ -354,6 +354,42 @@ button {
   gap: 1rem;
 }
 
+.penalty-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(243, 235, 218, 0.12);
+}
+
+.penalty-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.penalty-head .meta {
+  margin-top: 0;
+}
+
+.penalty-final {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.penalty-final .meta {
+  margin-top: 0;
+}
+
+.penalty-final .score {
+  font-size: 1.35rem;
+}
+
 .score-entry .big-input {
   font-family: var(--font-display);
   font-size: 2.4rem;
