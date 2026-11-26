@@ -2,7 +2,7 @@
   const STORAGE_KEY = "scrabble-score-v1";
 
   /** @typedef {{ id: string, name: string }} SavedPlayer */
-  /** @typedef {{ id: string, name: string, score: number }} GamePlayer */
+  /** @typedef {{ id: string, name: string, score: number, heldPenalty?: number }} GamePlayer */
   /** @typedef {{ id: string, players: GamePlayer[], turns: { playerId: string, points: number, at: number }[], startedAt: number, endedAt: number | null, active: boolean }} Game */
   /** @typedef {{ savedPlayers: SavedPlayer[], games: Game[], activeGameId: string | null }} Store */
 
@@ -20,6 +20,8 @@
   let store = loadStore();
   /** @type {{ count: number, names: string[], saveFlags: boolean[] }} */
   let draft = defaultDraft();
+  /** @type {Record<string, string>} In-progress held-tile penalties while ending a game */
+  let endPenalties = {};
 
   function uid() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -189,12 +191,49 @@
     toast("Turn undone");
   }
 
-  function endGame() {
+  function playerHeldPenalty(player) {
+    const value = Number(player?.heldPenalty);
+    return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+  }
+
+  function parsePenaltyInput(raw) {
+    if (raw === "" || raw == null) return 0;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0 || value > 999) return null;
+    return Math.round(value);
+  }
+
+  function beginEndGame() {
     const game = activeGame();
     if (!game) return;
+    endPenalties = Object.fromEntries(game.players.map((p) => [p.id, ""]));
+    navigate("end");
+  }
+
+  function endGameWithPenalties() {
+    const game = activeGame();
+    if (!game) return;
+
+    const parsed = {};
+    for (const player of game.players) {
+      const penalty = parsePenaltyInput(endPenalties[player.id]);
+      if (penalty === null) {
+        toast("Enter a non-negative penalty (or leave blank for 0)");
+        return;
+      }
+      parsed[player.id] = penalty;
+    }
+
+    for (const player of game.players) {
+      const penalty = parsed[player.id];
+      player.heldPenalty = penalty;
+      player.score = Math.max(0, player.score - penalty);
+    }
+
     game.active = false;
     game.endedAt = Date.now();
     store.activeGameId = null;
+    endPenalties = {};
     persist();
     navigate("home");
     toast("Game saved to history");
@@ -327,6 +366,65 @@
       </section>`;
   }
 
+  function renderEndGame() {
+    const game = activeGame();
+    if (!game) {
+      navigate("home");
+      return;
+    }
+    el.screenTitle.textContent = "Held tiles";
+    el.backBtn.hidden = false;
+
+    const rows = game.players
+      .map((p) => {
+        const raw = endPenalties[p.id] ?? "";
+        const penalty = parsePenaltyInput(raw);
+        const valid = penalty !== null;
+        const finalScore = valid ? Math.max(0, p.score - penalty) : p.score;
+        const penaltyNote =
+          valid && penalty > 0
+            ? `−${penalty} held tiles`
+            : "Leave blank or 0 if rack is empty";
+        return `
+          <div class="penalty-row">
+            <div class="penalty-head">
+              <strong>${escapeHtml(p.name)}</strong>
+              <span class="meta">Current ${p.score}</span>
+            </div>
+            <div class="field">
+              <label for="penalty-${p.id}">Held-tile penalty</label>
+              <input
+                id="penalty-${p.id}"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="999"
+                step="1"
+                placeholder="0"
+                value="${escapeHtml(raw)}"
+                data-action="penalty-input"
+                data-id="${p.id}"
+              />
+            </div>
+            <div class="penalty-final">
+              <span class="meta">${penaltyNote}</span>
+              <span class="score">${finalScore}</span>
+            </div>
+          </div>`;
+      })
+      .join("");
+
+    el.screen.innerHTML = `
+      <section class="panel stack">
+        <p class="hero-copy">Before saving, subtract points for letters left on each rack. Skip with 0 (or blank) when a player is out of tiles.</p>
+        ${rows}
+        <div class="btn-row">
+          <button class="btn btn-secondary" type="button" data-action="cancel-end">Back to game</button>
+          <button class="btn btn-primary" type="button" data-action="confirm-end">Save finals</button>
+        </div>
+      </section>`;
+  }
+
   function renderScoreEntry() {
     const game = activeGame();
     const player = game?.players.find((p) => p.id === route.params.playerId);
@@ -367,13 +465,20 @@
     const rows = game.players
       .slice()
       .sort((a, b) => b.score - a.score)
-      .map(
-        (p) => `
+      .map((p) => {
+        const penalty = playerHeldPenalty(p);
+        const meta = penalty
+          ? `<div class="meta">−${penalty} held tiles</div>`
+          : "";
+        return `
         <div class="player-row" style="cursor:default">
-          <strong>${escapeHtml(p.name)}</strong>
+          <span>
+            <strong>${escapeHtml(p.name)}</strong>
+            ${meta}
+          </span>
           <span class="score">${p.score}</span>
-        </div>`
-      )
+        </div>`;
+      })
       .join("");
 
     el.screen.innerHTML = `
@@ -389,12 +494,16 @@
     else if (route.name === "new") renderNewGame();
     else if (route.name === "game") renderGame();
     else if (route.name === "score") renderScoreEntry();
+    else if (route.name === "end") renderEndGame();
     else if (route.name === "history") renderHistoryDetail();
     else renderHome();
   }
 
   function onBack() {
-    if (route.name === "score") navigate("game");
+    if (route.name === "end") {
+      endPenalties = {};
+      navigate("game");
+    } else if (route.name === "score") navigate("game");
     else if (route.name === "game" || route.name === "new" || route.name === "history")
       navigate("home");
   }
@@ -436,7 +545,12 @@
     } else if (action === "undo") {
       undoLastTurn();
     } else if (action === "end-game") {
-      if (confirm("End this game and save it to history?")) endGame();
+      beginEndGame();
+    } else if (action === "cancel-end") {
+      endPenalties = {};
+      navigate("game");
+    } else if (action === "confirm-end") {
+      endGameWithPenalties();
     } else if (action === "open-game") {
       navigate("history", { id: target.getAttribute("data-id") });
     } else if (action === "resume-past") {
@@ -454,8 +568,32 @@
     } else if (action === "save-flag") {
       const index = Number(target.getAttribute("data-index"));
       draft.saveFlags[index] = /** @type {HTMLInputElement} */ (target).checked;
+    } else if (action === "penalty-input") {
+      const id = target.getAttribute("data-id");
+      if (!id) return;
+      endPenalties[id] = /** @type {HTMLInputElement} */ (target).value;
+      updatePenaltyPreview(id);
     }
   });
+
+  function updatePenaltyPreview(playerId) {
+    const game = activeGame();
+    const player = game?.players.find((p) => p.id === playerId);
+    const row = document.getElementById(`penalty-${playerId}`)?.closest(".penalty-row");
+    if (!game || !player || !row) return;
+    const penalty = parsePenaltyInput(endPenalties[playerId]);
+    const note = row.querySelector(".penalty-final .meta");
+    const scoreEl = row.querySelector(".penalty-final .score");
+    if (!note || !scoreEl) return;
+    if (penalty === null) {
+      note.textContent = "Enter a non-negative whole number";
+      scoreEl.textContent = String(player.score);
+      return;
+    }
+    note.textContent =
+      penalty > 0 ? `−${penalty} held tiles` : "Leave blank or 0 if rack is empty";
+    scoreEl.textContent = String(Math.max(0, player.score - penalty));
+  }
 
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;

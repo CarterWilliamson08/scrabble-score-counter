@@ -1,5 +1,5 @@
 /* Minimal offline shell for Add to Home Screen / flaky networks. */
-const CACHE = "scrabble-score-v1";
+const CACHE = "scrabble-score-v2";
 const ASSETS = [
   "./",
   "./index.html",
