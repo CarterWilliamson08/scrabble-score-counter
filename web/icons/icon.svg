@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Scrabble Score">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#145c4a"/>
+      <stop offset="100%" stop-color="#0f3d32"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#g)"/>
+  <rect x="96" y="96" width="320" height="320" rx="36" fill="#e6d2a0" stroke="#c9b07a" stroke-width="10"/>
+  <text x="256" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="200" font-weight="700" fill="#2a2116">S</text>
+  <text x="360" y="360" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#6b5a3e">1</text>
+</svg>
